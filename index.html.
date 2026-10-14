@@ -1,0 +1,252 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MikyChat | Connect Live</title>
+  <meta name="theme-color" content="#100d1c">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #100d1c; color: white;
+    }
+    header {
+      padding: 20px 7%; display: flex;
+      justify-content: space-between; align-items: center;
+      border-bottom: 1px solid #302641;
+    }
+    .logo { font-size: 25px; font-weight: bold; color: #d7a5ff; }
+    main {
+      width: min(430px, 92%); margin: 45px auto;
+      background: #1c1729; border: 1px solid #3b2b50;
+      padding: 28px; border-radius: 18px;
+    }
+    h1 { margin-top: 0; font-size: 28px; }
+    p { color: #c7bdd5; line-height: 1.5; }
+    label { display: block; margin: 17px 0 7px; }
+    input {
+      width: 100%; padding: 13px; border-radius: 9px;
+      border: 1px solid #514263; background: #100d1c;
+      color: white; font-size: 16px;
+    }
+    button {
+      padding: 13px; border: 0; border-radius: 9px;
+      font-size: 15px; font-weight: bold; cursor: pointer;
+    }
+    .primary { width: 100%; margin-top: 18px; background: #bb78ff; color: #180c27; }
+    .secondary { background: transparent; color: #d7a5ff; margin-top: 8px; }
+    .hidden { display: none; }
+    #message { overflow-wrap: anywhere; }
+    footer { text-align: center; color: #a99bb9; padding: 25px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">MikyChat ✦</div>
+    <button id="logout" class="secondary hidden">Log out</button>
+  </header>
+
+  <main>
+    <section id="auth">
+      <h1 id="heading">Welcome to MikyChat</h1>
+      <p id="intro">Discover creators, connect live, and join the community.</p>
+
+      <form id="authForm">
+        <label for="username">Username (for new accounts)</label>
+        <input id="username" autocomplete="username"
+               placeholder="Choose a username" maxlength="30">
+
+        <label for="email">Email address</label>
+        <input id="email" type="email" autocomplete="email"
+               placeholder="you@example.com" required>
+
+        <label for="password">Password</label>
+        <input id="password" type="password"
+               autocomplete="current-password" minlength="8"
+               placeholder="At least 8 characters" required>
+
+        <button class="primary" id="submitBtn" type="submit">Create account</button>
+      </form>
+
+      <button class="secondary" id="toggle">Already have an account? Log in</button>
+      <button class="secondary" id="forgot">Forgot password?</button>
+      <p id="message" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <h1>Welcome to MikyChat!</h1>
+      <p id="welcome"></p>
+      <p>Your account is connected to Supabase.</p>
+      <button class="primary" id="modelApply">Apply to become a model</button>
+      <p id="modelMessage"></p>
+    </section>
+  </main>
+
+  <footer>© 2026 MikyChat · Connect responsibly</footer>
+
+  <script type="module">
+    import { createClient } from
+      "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+    const SUPABASE_URL = "https://fruxvlmlrfdqvcwsrwbz.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_GzgDcfjES3X2M6K0lWJuww_j8HsIdSk;
+
+    const supabase = createClient(
+      SUPABASE_URL,https://fruxvlmlrfdqvcwsrwbz.supabase.co
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+    let mode = "signup";
+    const $ = id => document.getElementById(id);
+    const message = text => $("message").textContent = text;
+
+    function setMode(nextMode) {
+      mode = nextMode;
+      $("heading").textContent =
+        mode === "signup" ? "Create your account" : "Welcome back";
+      $("intro").textContent =
+        mode === "signup"
+          ? "Join the MikyChat community."
+          : "Log in to continue to MikyChat.";
+      $("username").classList.toggle("hidden", mode !== "signup");
+      $("username").required = mode === "signup";
+      $("submitBtn").textContent =
+        mode === "signup" ? "Create account" : "Log in";
+      $("toggle").textContent =
+        mode === "signup"
+          ? "Already have an account? Log in"
+          : "New to MikyChat? Create account";
+      $("password").autocomplete =
+        mode === "signup" ? "new-password" : "current-password";
+      message("");
+    }
+
+    async function showDashboard(user) {
+      $("auth").classList.add("hidden");
+      $("dashboard").classList.remove("hidden");
+      $("logout").classList.remove("hidden");
+      $("welcome").textContent =
+        "Signed in as " + (user.email || "MikyChat member") + ".";
+
+      const { error } = await supabase.from("profiles").upsert({
+        id: user.id,
+        username: user.user_metadata?.username ||
+          "member_" + user.id.slice(0, 8)
+      }, { onConflict: "id", ignoreDuplicates: true });
+
+      if (error) console.error("Profile setup:", error.message);
+    }
+
+    $("toggle").addEventListener("click", () => {
+      setMode(mode === "signup" ? "login" : "signup");
+    });
+
+    $("authForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      message("Please wait...");
+      $("submitBtn").disabled = true;
+
+      try {
+        const email = $("email").value.trim();
+        const password = $("password").value;
+
+        if (mode === "signup") {
+          const username = $("username").value.trim();
+
+          if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+            message("Username must be 3–30 letters, numbers, or underscores.");
+            return;
+          }
+
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: window.location.origin +
+                window.location.pathname,
+              data: { username }
+            }
+          });
+
+          if (error) throw error;
+
+          if (data.session && data.user) {
+            await showDashboard(data.user);
+          } else {
+            message("Account created! Check your email and confirm your account before logging in.");
+          }
+        } else {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email, password
+          });
+          if (error) throw error;
+          await showDashboard(data.user);
+        }
+      } catch (error) {
+        message(error.message);
+      } finally {
+        $("submitBtn").disabled = false;
+      }
+    });
+
+    $("forgot").addEventListener("click", async () => {
+      const email = $("email").value.trim();
+      if (!email) {
+        message("Enter your email address first.");
+        return;
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname
+      });
+      message(error ? error.message :
+        "If the address is registered, a password reset email will be sent.");
+    });
+
+    $("logout").addEventListener("click", async () => {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        $("welcome").textContent = error.message;
+        return;
+      }
+      $("dashboard").classList.add("hidden");
+      $("auth").classList.remove("hidden");
+      $("logout").classList.add("hidden");
+      setMode("login");
+    });
+
+    $("modelApply").addEventListener("click", async () => {
+      $("modelMessage").textContent = "Submitting application...";
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        $("modelMessage").textContent = "Please log in again.";
+        return;
+      }
+
+      const { error } = await supabase
+        .from("model_applications")
+        .insert({ user_id: user.id });
+
+      $("modelMessage").textContent = error
+        ? (error.code === "23505"
+            ? "You already have an application. Contact support for its status."
+            : "Application could not be submitted: " + error.message)
+        : "Application submitted! Your status is pending administrator review.";
+    });
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) await showDashboard(session.user);
+
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        $("dashboard").classList.add("hidden");
+        $("auth").classList.remove("hidden");
+        $("logout").classList.add("hidden");
+      }
+    });
+  </script>
+</body>
+</html>
