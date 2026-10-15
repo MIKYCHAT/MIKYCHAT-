@@ -291,14 +291,45 @@ forgotPassword.addEventListener('click', async () => {
   }
 });
 
-function updateAccountUI(session) {
-  const email = session && session.user ? session.user.email : '';
-  accountLabel.textContent = email ? 'Signed in: ' + email : '';
-  accountLabel.classList.toggle('hidden', !email);
-  document.getElementById('loginBtn').classList.toggle('hidden', !!email);
-  document.getElementById('joinBtn').classList.toggle('hidden', !!email);
-  logoutBtn.classList.toggle('hidden', !email);
+
+async function updateAccountUI(session) {
+  const user = session?.user;
+  const email = user?.email || '';
+
+  let displayName =
+    user?.user_metadata?.display_name ||
+    user?.user_metadata?.full_name ||
+    email.split('@')[0] ||
+    'MikyChat User';
+
+  let username = user?.user_metadata?.username || '';
+
+  if (user) {
+    const { data: profile, error } = await supabaseClient
+      .from('profiles')
+      .select('display_name, username')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Profile lookup failed:', error.message);
+    } else if (profile) {
+      displayName = profile.display_name || displayName;
+      username = profile.username || username;
+    }
+  }
+
+  accountLabel.textContent = user
+    ? displayName + (username ? ' (@' + username + ')' : '')
+    : '';
+
+  accountLabel.title = email;
+  accountLabel.classList.toggle('hidden', !user);
+  document.getElementById('loginBtn').classList.toggle('hidden', !!user);
+  document.getElementById('joinBtn').classList.toggle('hidden', !!user);
+  logoutBtn.classList.toggle('hidden', !user);
 }
+  
 logoutBtn.addEventListener('click', async () => {
   logoutBtn.disabled = true;
   const { error } = await supabaseClient.auth.signOut();
