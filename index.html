@@ -273,7 +273,10 @@ authForm.addEventListener('submit', async (event) => {
   }
 });
 
-forgotPassword.addEventListener('click', async () => {
+forgotPassword.addEventListener('click', async () => {const resendConfirmation = document.getElementById('resendConfirmation');
+
+resendConfirmation.addEventListener('click', async () => {
+  const
   const email = authEmail.value.trim();
   if (!email) {
     setAuthMessage('Enter your email address first, then tap Forgot password.', true);
